@@ -51,8 +51,10 @@ thead{position:sticky;top:160px;z-index:50}
 .btn.run{background:rgba(0,180,255,.13);border-color:var(--blue);color:var(--blue);padding:3px 16px;font-weight:600;font-size:11px}
 .btn.run:hover{background:rgba(0,180,255,.22);box-shadow:0 0 12px rgba(0,180,255,.3)}
 .btn.run:disabled{opacity:.4;cursor:not-allowed}
+.btn.run.active{background:rgba(0,180,255,.25);box-shadow:0 0 16px rgba(0,180,255,.4)}
 .btn.demo{background:rgba(255,179,0,.1);border-color:var(--yellow);color:var(--yellow)}
 .btn.demo:hover{background:rgba(255,179,0,.2)}
+.btn.demo.active{background:rgba(255,179,0,.25);box-shadow:0 0 16px rgba(255,179,0,.4)}
 .srch{margin-left:auto;display:flex;align-items:center;background:var(--bg3);border:1px solid var(--border2);padding:3px 8px;gap:5px}
 .srch input{background:none;border:none;color:var(--bright);font-family:var(--mono);font-size:11px;outline:none;width:120px}
 .srch input::placeholder{color:var(--dim)}
@@ -145,7 +147,7 @@ tbody tr{animation:rowIn .2s ease both}
 
 <div class="wlbar">
   <span class="cl">Watchlist:</span>
-  <textarea id="wl">SPY, QQQ, IWM, DIA, XLF, XLK, XLE, XLV, XLI, XLY, XLP, XLU, XLB, XLRE, XBI, GLD, SLV, USO, TLT, IEF, HYG, EFA, EEM, FXI, SMH, SOXX, ARKK, AAPL, MSFT, NVDA, AMZN, GOOGL, GOOG, META, TSLA, AVGO, AMD, ORCL, CRM, ADBE, NFLX, INTC, QCOM, TXN, MU, ASML, SMCI, AMAT, KLAC, MRVL, JPM, BAC, GS, MS, WFC, C, V, MA, PYPL, BLK, SCHW, AXP, COF, UNH, LLY, JNJ, PFE, MRK, ABBV, BMY, GILD, CVS, AMGN, REGN, VRTX, ISRG, ABT, XOM, CVX, COP, SLB, BP, EOG, OXY, MPC, VLO, HAL, BA, CAT, GE, MMM, HON, RTX, UPS, FDX, DE, COST, WMT, TGT, HD, LOW, NKE, SBUX, MCD, DIS, T, VZ, TMUS, NEE, SO, PCG, DUK, NLY, AGNC, VST, RIVN, PLTR, UBER, SNOW, NET, CRWD, PANW</textarea>
+  <textarea id="wl">SPY, QQQ, IWM, DIA, XLF, XLK, XLE, XLV, XLI, XLY, XLP, XLU, XLB, XLRE, XBI, XRT, XHB, SMH, SOXX, IBB, GLD, SLV, USO, TLT, IEF, HYG, LQD, EFA, EEM, FXI, EWJ, EWZ, GDX, ARKK, VXX</textarea>
   <button class="btn run" id="runBtn" onclick="run(false)">⚡ LIVE ANALYSIS</button>
   <button class="btn demo" onclick="run(true)">▶ DEMO MODE</button>
   <button class="btn" id="autoBtn" onclick="toggleAuto()">⟳ AUTO 5m</button>
@@ -157,19 +159,19 @@ tbody tr{animation:rowIn .2s ease both}
   <button class="btn pbtn" onclick="setWL('finance')">💰 FINANCE</button>
   <button class="btn pbtn" onclick="setWL('health')">💊 HEALTH</button>
   <button class="btn pbtn" onclick="setWL('energy')">⚡ ENERGY</button>
-  <button class="btn pbtn" onclick="setWL('etf')">📊 SECTOR ETFs</button>
+  <button class="btn pbtn on" onclick="setWL('etf')">📊 SECTOR ETFs</button>
   <button class="btn pbtn" onclick="setWL('dow')">📈 DOW JONES</button>
-  <button class="btn pbtn on" onclick="setWL('all')">🌐 ALL (~120)</button>
+  <button class="btn pbtn" onclick="setWL('all')">🌐 ALL (~120)</button>
 </div>
 
 <div class="ctls">
   <span class="cl">Filter:</span>
-  <button class="btn on" onclick="setF('all',this)">ALL</button>
+  <button class="btn" onclick="setF('all',this)">ALL</button>
   <button class="btn" onclick="setF('top',this)">★ TOP PICKS</button>
   <button class="btn" onclick="setF('r4',this)">4+ RED</button>
   <button class="btn" onclick="setF('vol',this)">+ VOL</button>
   <button class="btn" onclick="setF('bear',this)">BEARISH</button>
-  <button class="btn" onclick="setF('bull',this)">BULLISH</button>
+  <button class="btn on" onclick="setF('bull',this)">BULLISH</button>
   <span class="cl" style="margin-left:8px">Sort:</span>
   <button class="btn" onclick="setS('score')">Score</button>
   <button class="btn" onclick="setS('rvol')">RVOL</button>
@@ -194,6 +196,7 @@ tbody tr{animation:rowIn .2s ease both}
     <tr>
       <th rowspan="2" class="tl" style="min-width:28px">#</th>
       <th rowspan="2" class="tl" style="min-width:60px" onclick="setS('sym')">Symbol</th>
+      <th rowspan="2" onclick="setS('price')" data-tip="Current Price">PRICE</th>
       <th rowspan="2" onclick="setS('chg')" data-tip="Day Change %">CHG%</th>
       <th colspan="5" class="grp">— TRADE SIGNALS —</th>
       <th rowspan="2" onclick="setS('rvol')" data-tip="Relative Volume">RVOL</th>
@@ -209,7 +212,7 @@ tbody tr{animation:rowIn .2s ease both}
     </tr>
   </thead>
   <tbody id="tbody">
-    <tr><td colspan="19" style="text-align:center;padding:50px;color:var(--dim);letter-spacing:3px;font-size:10px">PRESS ⚡ LIVE ANALYSIS OR ▶ DEMO MODE TO BEGIN</td></tr>
+    <tr><td colspan="20" style="text-align:center;padding:50px;color:var(--dim);letter-spacing:3px;font-size:10px">PRESS ⚡ LIVE ANALYSIS OR ▶ DEMO MODE TO BEGIN</td></tr>
   </tbody>
 </table>
 </div>
@@ -223,7 +226,7 @@ tbody tr{animation:rowIn .2s ease both}
 </div>
 
 <script>
-var rows=[], filt='all', srt='score', autoTmr=null, busy=false;
+var rows=[], filt='bull', srt='score', autoTmr=null, busy=false;
 
 // ── WATCHLIST PRESETS ──────────────────────────────────────────────────────
 var WATCHLISTS = {
@@ -279,6 +282,18 @@ function tick(){
 setInterval(tick,1000); tick();
 
 // Yahoo Finance via proxy
+function fetchWithTimeout(url, ms){
+  return new Promise(function(resolve, reject){
+    var done=false;
+    var timer=setTimeout(function(){ if(!done){done=true;reject(new Error('timeout'));} }, ms);
+    fetch(url).then(function(r){
+      if(!done){done=true;clearTimeout(timer);resolve(r);}
+    }).catch(function(e){
+      if(!done){done=true;clearTimeout(timer);reject(e);}
+    });
+  });
+}
+
 async function fetchYahoo(syms){
   var fields='symbol,regularMarketPrice,regularMarketChangePercent,regularMarketVolume,averageDailyVolume10Day,regularMarketDayHigh,regularMarketPreviousClose,fiftyDayAverage,twoHundredDayAverage,regularMarketOpen';
   var yurl='https://query1.finance.yahoo.com/v7/finance/quote?symbols='+syms.join(',')+'&fields='+fields;
@@ -288,7 +303,7 @@ async function fetchYahoo(syms){
   ];
   for(var i=0;i<proxies.length;i++){
     try{
-      var res=await fetch(proxies[i],{signal:AbortSignal.timeout(9000)});
+      var res=await fetchWithTimeout(proxies[i], 9000);
       if(!res.ok) continue;
       var outer=await res.json();
       var raw=outer.contents||outer;
@@ -405,8 +420,12 @@ async function aiRank(data, direction){
 async function run(demo){
   if(busy) return;
   busy=true;
-  var btn=document.getElementById('runBtn');
-  btn.disabled=true; btn.textContent='⟳ RUNNING...';
+  var runBtn=document.getElementById('runBtn');
+  var demoBtn=document.querySelector('.btn.demo');
+  // Highlight only the active button
+  runBtn.classList.remove('active'); demoBtn.classList.remove('active');
+  if(demo){ demoBtn.classList.add('active'); } else { runBtn.classList.add('active'); }
+  runBtn.disabled=true; runBtn.textContent='⟳ RUNNING...';
   document.getElementById('pbar').style.display='block';
 
   var syms=document.getElementById('wl').value
@@ -444,10 +463,12 @@ async function run(demo){
   ai('thi','Computing multi-timeframe signals...');
   await sleep(150);
   rows=quotes.map(function(q){
-    return Object.assign({sym:q.symbol,chgPct:parseFloat((q.regularMarketChangePercent||0).toFixed(2))},computeSignals(q));
+    return Object.assign({
+      sym:q.symbol,
+      price:q.regularMarketPrice||0,
+      chgPct:parseFloat((q.regularMarketChangePercent||0).toFixed(2))
+    },computeSignals(q));
   });
-
-  // Set display score based on current filter direction
   var direction = filt==='bull' ? 'bull' : 'bear';
   rows.forEach(function(r){ r.score = direction==='bull' ? r.bullScore : r.bearScore; });
 
@@ -463,13 +484,19 @@ async function run(demo){
   var src=demo?'DEMO':'LIVE';
   ai('don','['+src+'] Analysis complete — <b>'+(aiRes.topPicks&&aiRes.topPicks.length||0)+' AI top picks</b> from '+rows.length+' symbols.');
   setTimeout(function(){document.getElementById('pbar').style.display='none';},1200);
-  btn.disabled=false; btn.textContent='⚡ LIVE ANALYSIS'; busy=false;
+  runBtn.disabled=false; runBtn.textContent='⚡ LIVE ANALYSIS'; busy=false;
 }
 
 function toggleAuto(){
   var btn=document.getElementById('autoBtn');
-  if(autoTmr){clearInterval(autoTmr);autoTmr=null;btn.classList.remove('on');ai('don','Auto-refresh stopped.');return;}
-  btn.classList.add('on'); run(false);
+  if(autoTmr){
+    clearInterval(autoTmr); autoTmr=null;
+    btn.classList.remove('on');
+    ai('don','Auto-refresh stopped.');
+    return;
+  }
+  btn.classList.add('on');
+  run(false);
   autoTmr=setInterval(function(){run(false);},5*60*1000);
 }
 
@@ -488,6 +515,7 @@ function render(){
   if(filt==='bull') d=d.filter(function(r){return r.chgPct>0;});
   if(srt==='score') d.sort(function(a,b){return b.score-a.score;});
   if(srt==='rvol')  d.sort(function(a,b){return b.rvol-a.rvol;});
+  if(srt==='price') d.sort(function(a,b){return b.price-a.price;});
   if(srt==='chg')   d.sort(function(a,b){
     return direction==='bull' ? b.chgPct-a.chgPct : a.chgPct-b.chgPct;
   });
@@ -495,7 +523,7 @@ function render(){
 
   var tb=document.getElementById('tbody');
   if(!d.length){
-    tb.innerHTML='<tr><td colspan="19" style="text-align:center;padding:30px;color:var(--dim)">NO RESULTS</td></tr>';
+    tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:30px;color:var(--dim)">NO RESULTS</td></tr>';
     return;
   }
   tb.innerHTML=d.map(function(r,i){
@@ -511,6 +539,7 @@ function render(){
     return '<tr class="'+tc+'" onclick="openModal(\''+r.sym+'\')">'+
       '<td class="rk">'+(i+1)+'</td>'+
       '<td class="sycl">'+r.sym+st+'</td>'+
+      '<td style="color:var(--bright);font-weight:600;font-size:11px">$'+(r.price>=1000?r.price.toFixed(0):r.price.toFixed(2))+'</td>'+
       '<td class="'+cc+'">'+cs+'</td>'+
       '<td>'+D(r.tsM5)+'</td><td>'+D(r.tsM15)+'</td><td>'+D(r.tsM30)+'</td><td>'+D(r.tsH1)+'</td><td>'+D(r.tsD1)+'</td>'+
       '<td><span class="rv '+rv+'">'+r.rvol.toFixed(2)+'</span></td>'+
@@ -535,6 +564,7 @@ function buildTopPanel(picks,rat){
     }).join('');
     return '<div class="tpcard" onclick="openModal(\''+sym+'\')">'+
       '<div class="tcs">'+sym+'</div>'+
+      '<div style="font-size:11px;color:var(--bright);font-weight:600;margin-top:2px">$'+(r.price>=1000?r.price.toFixed(0):r.price.toFixed(2))+'</div>'+
       '<div class="tcsc">Score <b>'+r.score+'</b></div>'+
       '<div class="tcrv">RVOL <span>'+r.rvol.toFixed(2)+'x</span></div>'+
       '<div class="tcdots">'+dots+'</div>'+
@@ -553,6 +583,7 @@ function openModal(sym){
   var rrsVals=[r.rrsM5,r.rrsM15,r.rrsM30,r.rrsH1,r.rrsD1];
   document.getElementById('modbody').innerHTML=
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'+
+      '<div>Price: <span style="color:var(--bright);font-weight:600;font-size:13px">$'+(r.price>=1000?r.price.toFixed(0):r.price.toFixed(2))+'</span></div>'+
       '<div>Change: <span style="color:'+cc+'">'+cs+'</span></div>'+
       '<div>RVOL: <span style="color:var(--yellow)">'+r.rvol.toFixed(2)+'x</span></div>'+
       '<div>Score: <span style="color:var(--blue);font-size:14px;font-family:var(--orb)">'+r.score+'</span></div>'+
@@ -615,6 +646,35 @@ function setF(f,btn){
   }
 }
 function setS(s){srt=s;render();}
+
+// ── AUTO-START ON PAGE LOAD ────────────────────────────────────────────────
+function isMarketOpen(){
+  var et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  var d=et.getDay(), m=et.getHours()*60+et.getMinutes();
+  return d>=1&&d<=5&&m>=570&&m<960;
+}
+
+window.addEventListener('load', function(){
+  // Short delay so fonts/DOM are fully ready
+  setTimeout(function(){
+    if(isMarketOpen()){
+      // Market is open: run live analysis and enable auto-refresh
+      ai('thi','Market is <b>OPEN</b> — starting live analysis and auto-refresh...');
+      run(false).then(function(){
+        // Enable auto-refresh after first run completes
+        if(!autoTmr){
+          var ab=document.getElementById('autoBtn');
+          ab.classList.add('on');
+          autoTmr=setInterval(function(){run(false);},5*60*1000);
+        }
+      });
+    } else {
+      // Market is closed: run demo mode so screen is never empty
+      ai('thi','Market is <b>CLOSED</b> — loading demo data...');
+      run(true);
+    }
+  }, 600);
+});
 </script>
 </body>
 </html>
