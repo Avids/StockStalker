@@ -148,7 +148,7 @@ tbody tr{animation:rowIn .2s ease both}
 <div class="wlbar">
   <span class="cl">Watchlist:</span>
   <textarea id="wl">SPY, QQQ, IWM, DIA, XLF, XLK, XLE, XLV, XLI, XLY, XLP, XLU, XLB, XLRE, XBI, XRT, XHB, SMH, SOXX, IBB, GLD, SLV, USO, TLT, IEF, HYG, LQD, EFA, EEM, FXI, EWJ, EWZ, GDX, ARKK, VXX</textarea>
-  <button class="btn run" id="runBtn" onclick="run(false)">⚡ LIVE ANALYSIS</button>
+  <button class="btn run" id="runBtn" onclick="run(false)">⚡ SCAN MARKET</button>
   <button class="btn demo" onclick="run(true)">▶ DEMO MODE</button>
   <button class="btn" id="autoBtn" onclick="toggleAuto()">⟳ AUTO 5m</button>
 </div>
@@ -182,7 +182,7 @@ tbody tr{animation:rowIn .2s ease both}
 
 <div class="aibar">
   <div class="aiind" id="aiind"></div>
-  <div class="aimsg" id="aimsg">Ready — press <b>⚡ LIVE ANALYSIS</b> for real Yahoo Finance data, or <b>▶ DEMO MODE</b> for instant simulated signals.</div>
+  <div class="aimsg" id="aimsg">Ready — press <b>⚡ SCAN MARKET</b> for real Yahoo Finance data, or <b>▶ DEMO MODE</b> for instant simulated signals.</div>
   <div class="pbar" id="pbar"><div class="pfill" id="pfill" style="width:0%"></div></div>
 </div>
 
@@ -212,7 +212,7 @@ tbody tr{animation:rowIn .2s ease both}
     </tr>
   </thead>
   <tbody id="tbody">
-    <tr><td colspan="20" style="text-align:center;padding:50px;color:var(--dim);letter-spacing:3px;font-size:10px">PRESS ⚡ LIVE ANALYSIS OR ▶ DEMO MODE TO BEGIN</td></tr>
+    <tr><td colspan="20" style="text-align:center;padding:50px;color:var(--dim);letter-spacing:3px;font-size:10px">PRESS ⚡ SCAN MARKET OR ▶ DEMO MODE TO BEGIN</td></tr>
   </tbody>
 </table>
 </div>
@@ -267,6 +267,8 @@ function setWL(key){
   document.getElementById('wl').value = WATCHLISTS[key] || WATCHLISTS.all;
   document.querySelectorAll('.pbtn').forEach(function(b){b.classList.remove('on');});
   event.target.classList.add('on');
+  // Auto-run: live if market open, demo if closed
+  if(isMarketOpen()){ run(false); } else { run(true); }
 }
 
 // Clock
@@ -430,7 +432,7 @@ async function run(demo){
 
   var syms=document.getElementById('wl').value
     .split(/[,\s]+/).map(function(s){return s.trim().toUpperCase();}).filter(Boolean);
-  if(!syms.length){busy=false;btn.disabled=false;btn.textContent='⚡ LIVE ANALYSIS';return;}
+  if(!syms.length){busy=false;runBtn.disabled=false;runBtn.textContent='⚡ SCAN MARKET';return;}
 
   prog(0); skeleton(syms.length);
   var quotes=[];
@@ -484,7 +486,7 @@ async function run(demo){
   var src=demo?'DEMO':'LIVE';
   ai('don','['+src+'] Analysis complete — <b>'+(aiRes.topPicks&&aiRes.topPicks.length||0)+' AI top picks</b> from '+rows.length+' symbols.');
   setTimeout(function(){document.getElementById('pbar').style.display='none';},1200);
-  runBtn.disabled=false; runBtn.textContent='⚡ LIVE ANALYSIS'; busy=false;
+  runBtn.disabled=false; runBtn.textContent='⚡ SCAN MARKET'; busy=false;
 }
 
 function toggleAuto(){
