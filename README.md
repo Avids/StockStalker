@@ -20,3 +20,5 @@ Switch between BEARISH and BULLISH filters — AI re-ranks picks automatically
 Best time to run: 9:45–10:15 AM ET for highest-probability signals
 
 Tech stack: Vanilla HTML/CSS/JS · Anthropic Claude API · Yahoo Finance API
+
+Preview: https://avids.github.io/StockStalker/
