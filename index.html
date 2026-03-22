@@ -51,7 +51,8 @@ thead{position:sticky;top:160px;z-index:50}
 .btn.run{background:rgba(0,180,255,.13);border-color:var(--blue);color:var(--blue);padding:3px 16px;font-weight:600;font-size:11px}
 .btn.run:hover{background:rgba(0,180,255,.22);box-shadow:0 0 12px rgba(0,180,255,.3)}
 .btn.run:disabled{opacity:.4;cursor:not-allowed}
-.btn.run.active{background:rgba(0,180,255,.25);box-shadow:0 0 16px rgba(0,180,255,.4)}
+.btn.run.mkt-closed{opacity:.35;cursor:not-allowed;border-color:var(--dim);color:var(--dim);background:var(--bg3)}
+.btn.run.mkt-closed:hover{border-color:var(--dim);color:var(--dim);box-shadow:none}
 .btn.demo{background:rgba(255,179,0,.1);border-color:var(--yellow);color:var(--yellow)}
 .btn.demo:hover{background:rgba(255,179,0,.2)}
 .btn.demo.active{background:rgba(255,179,0,.25);box-shadow:0 0 16px rgba(255,179,0,.4)}
@@ -149,7 +150,7 @@ tbody tr{animation:rowIn .2s ease both}
   <span class="cl">Watchlist:</span>
   <textarea id="wl">SPY, QQQ, IWM, DIA, XLF, XLK, XLE, XLV, XLI, XLY, XLP, XLU, XLB, XLRE, XBI, XRT, XHB, SMH, SOXX, IBB, GLD, SLV, USO, TLT, IEF, HYG, LQD, EFA, EEM, FXI, EWJ, EWZ, GDX, ARKK, VXX</textarea>
   <button class="btn run" id="runBtn" onclick="run(false)">⚡ SCAN MARKET</button>
-  <button class="btn demo" onclick="run(true)">▶ DEMO MODE</button>
+  <button class="btn demo" id="demoBtn" onclick="run(true)">▶ DEMO MODE</button>
   <button class="btn" id="autoBtn" onclick="toggleAuto()">⟳ AUTO 5m</button>
 </div>
 <div class="wlpresets">
@@ -267,8 +268,8 @@ function setWL(key){
   document.getElementById('wl').value = WATCHLISTS[key] || WATCHLISTS.all;
   document.querySelectorAll('.pbtn').forEach(function(b){b.classList.remove('on');});
   event.target.classList.add('on');
-  // Auto-run: live if market open, demo if closed
-  if(isMarketOpen()){ run(false); } else { run(true); }
+  // Always use demo when market is closed
+  run(isMarketOpen() ? false : true);
 }
 
 // Clock
@@ -280,6 +281,19 @@ function tick(){
   var el=document.getElementById('mks');
   el.textContent=open?'● MARKET OPEN':'● MARKET CLOSED';
   el.className='mks '+(open?'mo':'mc');
+  // Disable SCAN MARKET button when market is closed
+  var rb=document.getElementById('runBtn');
+  if(rb&&!busy){
+    if(open){
+      rb.classList.remove('mkt-closed');
+      rb.disabled=false;
+      rb.title='';
+    } else {
+      rb.classList.add('mkt-closed');
+      rb.disabled=true;
+      rb.title='Market is closed — use Demo Mode';
+    }
+  }
 }
 setInterval(tick,1000); tick();
 
@@ -420,10 +434,15 @@ async function aiRank(data, direction){
 
 // Main pipeline
 async function run(demo){
+  // Block live scan when market is closed
+  if(!demo && !isMarketOpen()){
+    ai('err','Market is <b>CLOSED</b> — live scan unavailable. Use <b>▶ DEMO MODE</b> instead.');
+    return;
+  }
   if(busy) return;
   busy=true;
   var runBtn=document.getElementById('runBtn');
-  var demoBtn=document.querySelector('.btn.demo');
+  var demoBtn=document.getElementById('demoBtn');
   // Highlight only the active button
   runBtn.classList.remove('active'); demoBtn.classList.remove('active');
   if(demo){ demoBtn.classList.add('active'); } else { runBtn.classList.add('active'); }
@@ -483,7 +502,9 @@ async function run(demo){
   render(); hdrStats(); buildTopPanel(aiRes.topPicks,aiRes.rationale);
 
   prog(100);
-  var src=demo?'DEMO':'LIVE';
+  var src = demo
+    ? (isMarketOpen() ? '🟡 DEMO' : '🔴 DEMO — MARKET CLOSED — data is simulated')
+    : '🟢 LIVE';
   ai('don','['+src+'] Analysis complete — <b>'+(aiRes.topPicks&&aiRes.topPicks.length||0)+' AI top picks</b> from '+rows.length+' symbols.');
   setTimeout(function(){document.getElementById('pbar').style.display='none';},1200);
   runBtn.disabled=false; runBtn.textContent='⚡ SCAN MARKET'; busy=false;
@@ -657,13 +678,11 @@ function isMarketOpen(){
 }
 
 window.addEventListener('load', function(){
-  // Short delay so fonts/DOM are fully ready
   setTimeout(function(){
     if(isMarketOpen()){
-      // Market is open: run live analysis and enable auto-refresh
-      ai('thi','Market is <b>OPEN</b> — starting live analysis and auto-refresh...');
+      // Market OPEN: run live + enable auto-refresh
+      ai('thi','Market is <b style="color:var(--green)">OPEN</b> — starting live scan and auto-refresh...');
       run(false).then(function(){
-        // Enable auto-refresh after first run completes
         if(!autoTmr){
           var ab=document.getElementById('autoBtn');
           ab.classList.add('on');
@@ -671,8 +690,11 @@ window.addEventListener('load', function(){
         }
       });
     } else {
-      // Market is closed: run demo mode so screen is never empty
-      ai('thi','Market is <b>CLOSED</b> — loading demo data...');
+      // Market CLOSED: show warning + run demo
+      var et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+      var day=et.getDay();
+      var lastClose = (day===6)?'Friday':(day===0)?'Friday':'yesterday';
+      ai('err','Market is <b style="color:var(--red)">CLOSED</b> — showing simulated data. Last real close: <b>'+lastClose+'</b>. Live scan resumes Mon–Fri 9:30 AM ET.');
       run(true);
     }
   }, 600);
