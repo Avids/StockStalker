@@ -99,6 +99,34 @@ async function runScan() {
   const readyMsg = document.getElementById('readyMessage');
   const resultsContainer = document.getElementById('resultsContainer');
   
+  // Check if API keys are configured for real data
+  if (currentDataSource !== 'demo') {
+    const apiKeys = JSON.parse(localStorage.getItem('stockAnalyzerApiKeys') || '{}');
+    const hasFinnhub = !!apiKeys.finnhub;
+    const hasAlphaVantage = !!apiKeys.alphaVantage;
+    const hasMassive = !!apiKeys.massive;
+    
+    if (!hasFinnhub && !hasAlphaVantage && !hasMassive && currentDataSource === 'yahoo') {
+      // No APIs configured - switch to demo mode automatically
+      const useDemo = confirm(
+        '⚠ No API keys configured!\n\n' +
+        'Would you like to:\n' +
+        '• Click OK for DEMO MODE (instant results)\n' +
+        '• Click Cancel to configure APIs first\n\n' +
+        'APIs needed: Finnhub, Alpha Vantage, or Massive'
+      );
+      
+      if (useDemo) {
+        currentDataSource = 'demo';
+        document.getElementById('dataSource').value = 'demo';
+      } else {
+        // Open settings
+        window.location.href = 'index.html';
+        return;
+      }
+    }
+  }
+  
   if (readyMsg) readyMsg.classList.add('hidden');
   if (resultsContainer) resultsContainer.classList.remove('hidden');
   
@@ -107,7 +135,7 @@ async function runScan() {
     renderResults(scanResults);
   } catch (error) {
     console.error('Scan failed:', error);
-    alert('Scan failed: ' + error.message);
+    alert('Scan failed: ' + error.message + '\n\nTry DEMO MODE instead!');
   }
 }
 
