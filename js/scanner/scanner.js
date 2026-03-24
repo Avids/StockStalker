@@ -1,25 +1,30 @@
-// ── Market Scanner ─────────────────────────────────────────────────────
-
-async function scanMarket(preset = 'all', dataSource = 'demo') {
+async function scanMarket(preset = 'all', dataSource = 'demo', signal = null) {
   const watchlist = getWatchlist(preset);
   const results = [];
   let scanned = 0;
   let failed = 0;
   
-  // Update UI
   updateScanStatus('scanning', `Scanning ${watchlist.length} symbols...`);
   showLoadingOverlay(true, `Scanning market…`, `0/${watchlist.length}`);
   
   try {
-    // Process in batches to avoid overwhelming APIs
     const batchSize = 10;
     for (let i = 0; i < watchlist.length; i += batchSize) {
+      // Check if cancelled
+      if (signal && signal.aborted) {
+        throw new Error('Scan cancelled');
+      }
+      
       const batch = watchlist.slice(i, i + batchSize);
       
-      // Process batch in parallel
       const batchPromises = batch.map(async (symbol) => {
+        // Check if cancelled
+        if (signal && signal.aborted) {
+          throw new Error('Scan cancelled');
+        }
+        
         try {
-          const data = await fetchStockData(symbol, dataSource);
+          const data = await fetchStockData(symbol, dataSource, signal);
           if (data) {
             const signals = window.SignalEngine.generateTradeSignals(data);
             const relStrength = window.SignalEngine.calculateRelativeStrength(symbol, data, results);
@@ -36,13 +41,15 @@ async function scanMarket(preset = 'all', dataSource = 'demo') {
             };
           }
         } catch (e) {
+          if (e.name === 'AbortError' || e.message === 'Scan cancelled') {
+            throw e; // Re-throw to stop scanning
+          }
           console.warn(`Failed to scan ${symbol}:`, e.message);
           failed++;
           return null;
         }
       });
       
-      // Wait for batch to complete
       const batchResults = await Promise.all(batchPromises);
       const validResults = batchResults.filter(r => r !== null);
       results.push(...validResults);
@@ -50,13 +57,11 @@ async function scanMarket(preset = 'all', dataSource = 'demo') {
       scanned += batch.length;
       updateLoadingProgress(scanned, watchlist.length, failed);
       
-      // Small delay between batches to avoid rate limiting
       if (dataSource !== 'demo' && i + batchSize < watchlist.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
-    // Sort by score
     results.sort((a, b) => b.score - a.score);
     
     updateScanStatus('complete', `Scan complete: ${results.length}/${watchlist.length} stocks`);
@@ -64,17 +69,20 @@ async function scanMarket(preset = 'all', dataSource = 'demo') {
     
     return results;
   } catch (error) {
-    updateScanStatus('error', `Scan failed: ${error.message}`);
+    if (error.name === 'AbortError' || error.message === 'Scan cancelled') {
+      updateScanStatus('complete', 'Scan cancelled');
+    } else {
+      updateScanStatus('error', `Scan failed: ${error.message}`);
+    }
     showLoadingOverlay(false);
     throw error;
   }
 }
 
-async function fetchStockData(symbol, dataSource) {
-  // Add timeout to prevent hanging
+async function fetchStockData(symbol, dataSource, signal = null) {
   const timeout = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error('Request timeout - try DEMO MODE')), 
-      dataSource === 'demo' ? 100 : 8000)  // 8 second timeout for real APIs
+    setTimeout(() => reject(new Error('Request timeout')), 
+      dataSource === 'demo' ? 100 : 8000)
   );
   
   const fetchData = async () => {
@@ -86,7 +94,6 @@ async function fetchStockData(symbol, dataSource) {
           return await fetchYahooFinance(symbol);
         } catch (e) {
           console.warn(`Yahoo failed for ${symbol}:`, e.message);
-          // Yahoo often fails without proper CORS - fallback to demo data
           return generateDemoData(symbol);
         }
       case 'finnhub':
@@ -99,76 +106,19 @@ async function fetchStockData(symbol, dataSource) {
   };
   
   try {
+    // Use signal if provided for fetch abortion
+    if (signal) {
+      return await Promise.race([
+        fetchData(),
+        timeout,
+        new Promise((_, reject) => {
+          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        })
+      ]);
+    }
     return await Promise.race([fetchData(), timeout]);
   } catch (error) {
     console.warn(`${symbol} fetch failed:`, error.message);
     return null;
   }
 }
-  
-  try {
-    return await Promise.race([fetchData(), timeout]);
-  } catch (error) {
-    console.warn(`${symbol} fetch failed:`, error.message);
-    return null;
-  }
-}
-
-function generateDemoData(symbol) {
-  const basePrice = Math.random() * 500 + 50;
-  const changePercent = (Math.random() - 0.5) * 10;
-  const change = basePrice * (changePercent / 100);
-  
-  return {
-    symbol,
-    currentPrice: parseFloat(basePrice.toFixed(2)),
-    priceChangePercent: changePercent.toFixed(2),
-    priceChange: change.toFixed(2),
-    volume: Math.floor(Math.random() * 10000000 + 1000000),
-    avgVolume: Math.floor(Math.random() * 10000000 + 1000000),
-    weekHigh52: (basePrice * 1.3).toFixed(2),
-    weekLow52: (basePrice * 0.7).toFixed(2),
-    marketCap: (basePrice * Math.random() * 1000000000).toFixed(0),
-    exchange: ['NYSE', 'NASDAQ', 'AMEX'][Math.floor(Math.random() * 3)]
-  };
-}
-
-function updateScanStatus(status, text) {
-  const el = document.getElementById('scanStatus');
-  if (!el) return;
-  
-  el.className = 'status-indicator ' + status;
-  el.innerHTML = `<span class="status-dot">●</span><span>${text}</span>`;
-}
-
-function showLoadingOverlay(show, text = '', progress = '') {
-  const overlay = document.getElementById('loadingOverlay');
-  const loadingText = document.getElementById('loadingText');
-  const loadingProgress = document.getElementById('loadingProgress');
-  
-  if (!overlay) return;
-  
-  if (show) {
-    if (loadingText) loadingText.textContent = text;
-    if (loadingProgress) loadingProgress.textContent = progress;
-    overlay.classList.remove('hidden');
-  } else {
-    overlay.classList.add('hidden');
-  }
-}
-
-function updateLoadingProgress(current, total, failed = 0) {
-  const progress = document.getElementById('loadingProgress');
-  if (progress) {
-    const failedText = failed > 0 ? ` (${failed} failed)` : '';
-    progress.textContent = `${current}/${total}${failedText}`;
-  }
-}
-
-// Export for use in other modules
-window.MarketScanner = {
-  scanMarket,
-  fetchStockData,
-  updateScanStatus,
-  showLoadingOverlay
-};
