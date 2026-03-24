@@ -317,12 +317,29 @@ function init() {
   setupScannerControls();
   setupSettingsPanel();
   
+  // Check API keys on load
+  checkApiKeys();
+  
   console.log('🎯 Stock Stalker Pro initialized');
 }
 
-// Start when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
+function checkApiKeys() {
+  const apiKeys = JSON.parse(localStorage.getItem('stockAnalyzerApiKeys') || '{}');
+  const hasAnyApi = !!apiKeys.finnhub || !!apiKeys.alphaVantage || !!apiKeys.massive;
+  
+  if (!hasAnyApi) {
+    // Show notification
+    setTimeout(() => {
+      const msg = document.getElementById('readyMessage');
+      if (msg) {
+        msg.innerHTML = `
+          <span class="ready-icon">⚠</span>
+          <div>
+            <strong>No API Keys Configured</strong><br>
+            Click <strong>⚙ SETTINGS</strong> to configure APIs, or use <strong>▶ DEMO MODE</strong> for instant results.
+          </div>
+        `;
+      }
+    }, 1000);
+  }
 }
