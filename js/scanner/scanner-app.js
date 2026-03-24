@@ -1,3 +1,98 @@
+// Add at the top with other variables
+let scanAbortController = null;
+let isScanning = false;
+
+// Update runScan function
+async function runScan() {
+  const readyMsg = document.getElementById('readyMessage');
+  const resultsContainer = document.getElementById('resultsContainer');
+  
+  // Prevent multiple scans
+  if (isScanning) {
+    alert('Scan already in progress');
+    return;
+  }
+  
+  // Check if API keys are configured for real data
+  if (currentDataSource !== 'demo') {
+    const apiKeys = JSON.parse(localStorage.getItem('stockAnalyzerApiKeys') || '{}');
+    const hasFinnhub = !!apiKeys.finnhub;
+    const hasAlphaVantage = !!apiKeys.alphaVantage;
+    const hasMassive = !!apiKeys.massive;
+    
+    if (!hasFinnhub && !hasAlphaVantage && !hasMassive && currentDataSource === 'yahoo') {
+      const useDemo = confirm(
+        '⚠ No API keys configured!\n\n' +
+        'Would you like to:\n' +
+        '• Click OK for DEMO MODE (instant results)\n' +
+        '• Click Cancel to configure APIs first\n\n' +
+        'APIs needed: Finnhub, Alpha Vantage, or Massive'
+      );
+      
+      if (useDemo) {
+        currentDataSource = 'demo';
+        const dataSourceSelect = document.getElementById('dataSource');
+        if (dataSourceSelect) dataSourceSelect.value = 'demo';
+      } else {
+        window.location.href = 'index.html';
+        return;
+      }
+    }
+  }
+  
+  if (readyMsg) readyMsg.classList.add('hidden');
+  if (resultsContainer) resultsContainer.classList.remove('hidden');
+  
+  try {
+    isScanning = true;
+    scanAbortController = new AbortController();
+    scanResults = await window.MarketScanner.scanMarket(currentPreset, currentDataSource, scanAbortController.signal);
+    renderResults(scanResults);
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('Scan cancelled by user');
+      window.MarketScanner.updateScanStatus('complete', 'Scan cancelled');
+    } else {
+      console.error('Scan failed:', error);
+      alert('Scan failed: ' + error.message + '\n\nTry DEMO MODE instead!');
+    }
+  } finally {
+    isScanning = false;
+    scanAbortController = null;
+  }
+}
+
+// Add cancel function
+function cancelScan() {
+  if (scanAbortController) {
+    scanAbortController.abort();
+  }
+  isScanning = false;
+  window.MarketScanner.showLoadingOverlay(false);
+  window.MarketScanner.updateScanStatus('complete', 'Scan cancelled');
+  
+  // Re-enable scan button
+  const scanBtn = document.getElementById('scanMarketBtn');
+  if (scanBtn) scanBtn.disabled = false;
+}
+
+// Update setupScannerControls function
+function setupScannerControls() {
+  const scanBtn = document.getElementById('scanMarketBtn');
+  const demoBtn = document.getElementById('demoModeBtn');
+  const autoBtn = document.getElementById('autoScanBtn');
+  const cancelBtn = document.getElementById('cancelScanBtn');  // Add this
+  const presetBtns = document.querySelectorAll('.preset-btn');
+  const filterSelect = document.getElementById('filterSelect');
+  const sortBtns = document.querySelectorAll('.sort-btn');
+  
+  // Cancel button
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', cancelScan);
+  }
+  
+  // ... rest of existing code ...
+}
 // ── Stock Stalker App Initialization ───────────────────────────────────
 
 let autoScanInterval = null;
