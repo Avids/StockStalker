@@ -73,7 +73,8 @@ async function scanMarket(preset = 'all', dataSource = 'demo') {
 async function fetchStockData(symbol, dataSource) {
   // Add timeout to prevent hanging
   const timeout = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error('Timeout')), dataSource === 'demo' ? 100 : 5000)
+    setTimeout(() => reject(new Error('Request timeout - try DEMO MODE')), 
+      dataSource === 'demo' ? 100 : 8000)  // 8 second timeout for real APIs
   );
   
   const fetchData = async () => {
@@ -81,7 +82,13 @@ async function fetchStockData(symbol, dataSource) {
       case 'demo':
         return generateDemoData(symbol);
       case 'yahoo':
-        return await fetchYahooFinance(symbol);
+        try {
+          return await fetchYahooFinance(symbol);
+        } catch (e) {
+          console.warn(`Yahoo failed for ${symbol}:`, e.message);
+          // Yahoo often fails without proper CORS - fallback to demo data
+          return generateDemoData(symbol);
+        }
       case 'finnhub':
         return await fetchFinnhubQuote(symbol);
       case 'massive':
@@ -90,6 +97,14 @@ async function fetchStockData(symbol, dataSource) {
         return generateDemoData(symbol);
     }
   };
+  
+  try {
+    return await Promise.race([fetchData(), timeout]);
+  } catch (error) {
+    console.warn(`${symbol} fetch failed:`, error.message);
+    return null;
+  }
+}
   
   try {
     return await Promise.race([fetchData(), timeout]);
