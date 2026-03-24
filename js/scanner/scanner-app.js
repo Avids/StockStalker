@@ -4,6 +4,23 @@ let autoScanInterval = null;
 let currentPreset = 'all';
 let currentDataSource = 'demo';
 let scanResults = [];
+let scanAbortController = null;
+
+// Add this function
+function cancelScan() {
+  if (scanAbortController) {
+    scanAbortController.abort();
+    scanAbortController = null;
+  }
+  window.MarketScanner.showLoadingOverlay(false);
+  window.MarketScanner.updateScanStatus('complete', 'Scan cancelled');
+}
+
+// Add event listener in setupScannerControls()
+const cancelBtn = document.getElementById('cancelScanBtn');
+if (cancelBtn) {
+  cancelBtn.addEventListener('click', cancelScan);
+}
 
 // Clock update
 function updateClock() {
