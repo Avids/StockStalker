@@ -4,70 +4,98 @@ async function scanMarket(preset = 'all', dataSource = 'demo') {
   const watchlist = getWatchlist(preset);
   const results = [];
   let scanned = 0;
+  let failed = 0;
   
   // Update UI
   updateScanStatus('scanning', `Scanning ${watchlist.length} symbols...`);
   showLoadingOverlay(true, `Scanning market…`, `0/${watchlist.length}`);
   
   try {
-    // Scan each symbol
-    for (const symbol of watchlist) {
-      try {
-        const data = await fetchStockData(symbol, dataSource);
-        if (data) {
-          const signals = window.SignalEngine.generateTradeSignals(data);
-          const relStrength = window.SignalEngine.calculateRelativeStrength(symbol, data, results);
-          const relVolume = window.SignalEngine.calculateRelativeVolume(data);
-          const score = window.SignalEngine.calculateScore(signals, relStrength, relVolume, data);
-          
-          results.push({
-            symbol,
-            ...data,
-            signals,
-            relStrength,
-            relVolume,
-            score
-          });
+    // Process in batches to avoid overwhelming APIs
+    const batchSize = 10;
+    for (let i = 0; i < watchlist.length; i += batchSize) {
+      const batch = watchlist.slice(i, i + batchSize);
+      
+      // Process batch in parallel
+      const batchPromises = batch.map(async (symbol) => {
+        try {
+          const data = await fetchStockData(symbol, dataSource);
+          if (data) {
+            const signals = window.SignalEngine.generateTradeSignals(data);
+            const relStrength = window.SignalEngine.calculateRelativeStrength(symbol, data, results);
+            const relVolume = window.SignalEngine.calculateRelativeVolume(data);
+            const score = window.SignalEngine.calculateScore(signals, relStrength, relVolume, data);
+            
+            return {
+              symbol,
+              ...data,
+              signals,
+              relStrength,
+              relVolume,
+              score
+            };
+          }
+        } catch (e) {
+          console.warn(`Failed to scan ${symbol}:`, e.message);
+          failed++;
+          return null;
         }
-      } catch (e) {
-        console.warn(`Failed to scan ${symbol}:`, e.message);
-      }
+      });
       
-      scanned++;
-      updateLoadingProgress(scanned, watchlist.length);
+      // Wait for batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      const validResults = batchResults.filter(r => r !== null);
+      results.push(...validResults);
       
-      // Small delay to avoid rate limiting
-      if (dataSource !== 'demo') {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      scanned += batch.length;
+      updateLoadingProgress(scanned, watchlist.length, failed);
+      
+      // Small delay between batches to avoid rate limiting
+      if (dataSource !== 'demo' && i + batchSize < watchlist.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
     // Sort by score
     results.sort((a, b) => b.score - a.score);
     
-    updateScanStatus('complete', `Scan complete: ${results.length} stocks`);
+    updateScanStatus('complete', `Scan complete: ${results.length}/${watchlist.length} stocks`);
     showLoadingOverlay(false);
     
     return results;
   } catch (error) {
-    updateScanStatus('error', 'Scan failed');
+    updateScanStatus('error', `Scan failed: ${error.message}`);
     showLoadingOverlay(false);
     throw error;
   }
 }
 
 async function fetchStockData(symbol, dataSource) {
-  switch (dataSource) {
-    case 'demo':
-      return generateDemoData(symbol);
-    case 'yahoo':
-      return await fetchYahooFinance(symbol);
-    case 'finnhub':
-      return await fetchFinnhubQuote(symbol);
-    case 'massive':
-      return await fetchMassiveQuote(symbol);
-    default:
-      return generateDemoData(symbol);
+  // Add timeout to prevent hanging
+  const timeout = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Timeout')), dataSource === 'demo' ? 100 : 5000)
+  );
+  
+  const fetchData = async () => {
+    switch (dataSource) {
+      case 'demo':
+        return generateDemoData(symbol);
+      case 'yahoo':
+        return await fetchYahooFinance(symbol);
+      case 'finnhub':
+        return await fetchFinnhubQuote(symbol);
+      case 'massive':
+        return await fetchMassiveQuote(symbol);
+      default:
+        return generateDemoData(symbol);
+    }
+  };
+  
+  try {
+    return await Promise.race([fetchData(), timeout]);
+  } catch (error) {
+    console.warn(`${symbol} fetch failed:`, error.message);
+    return null;
   }
 }
 
@@ -114,10 +142,11 @@ function showLoadingOverlay(show, text = '', progress = '') {
   }
 }
 
-function updateLoadingProgress(current, total) {
+function updateLoadingProgress(current, total, failed = 0) {
   const progress = document.getElementById('loadingProgress');
   if (progress) {
-    progress.textContent = `${current}/${total}`;
+    const failedText = failed > 0 ? ` (${failed} failed)` : '';
+    progress.textContent = `${current}/${total}${failedText}`;
   }
 }
 
